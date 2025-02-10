@@ -33,6 +33,215 @@ If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Lar
 
 We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
 
+
+# Laravel Deployment on Shared Hosting (cPanel)
+
+## 🚀 Overview
+This guide provides a **step-by-step** process for deploying a Laravel project on **shared hosting with cPanel**. Follow these instructions carefully to ensure a smooth deployment.
+
+---
+
+## **✅ Step 1: Prepare Your Laravel Project for Deployment**
+
+### **On Your Local Computer (MacBook)**
+
+#### **1. Navigate to Your Laravel Project Folder**
+```bash
+cd /Users/user/Herd/pageant
+```
+
+#### **2. Remove Development Dependencies (Optional but recommended)**
+```bash
+composer install --optimize-autoloader --no-dev
+```
+
+#### **3. Build Frontend Assets (If using Laravel Mix or Vite)**
+```bash
+npm run build
+```
+(If you see "missing script: build," skip this step.)
+
+#### **4. Clear Cache and Optimize Laravel**
+```bash
+php artisan cache:clear
+php artisan config:clear
+php artisan route:clear
+php artisan view:clear
+php artisan optimize
+```
+
+#### **5. Zip Your Laravel Project (EXCEPT `node_modules` & `vendor/` folders)**
+```bash
+zip -r laravel_project.zip . -x "node_modules/*" "vendor/*"
+```
+(This creates a ZIP file without unnecessary folders.)
+
+---
+
+## **✅ Step 2: Upload Your Laravel Project to cPanel**
+
+### **In cPanel (`https://missunity.com.ng:2083`)**
+
+1. **Go to File Manager → Upload → Select `laravel_project.zip`**.
+2. **Once uploaded, extract it inside `/home/missunit/`**.
+
+🚨 **DO NOT extract into `public_html/`. Laravel's files should NOT be directly in `public_html/`.**
+
+---
+
+## **✅ Step 3: Move `public/` Folder Contents to `public_html/ except mix-manifest.json`**
+
+Laravel’s entry point should be inside `public_html/`, so we need to move the contents of `public/` there.
+
+### **Steps in cPanel:**
+1. **Go to File Manager → Open `laravel_project/public/`**.
+2. **Select ALL files inside `public/`** (**DO NOT** select the `public/` folder itself).
+3. **Click "Move" and move them to `public_html/`.**
+4. **Go back to `public_html/` and edit `index.php`.**
+
+#### **Modify `index.php` to Point to the Correct Paths:**
+```php
+<?php
+use Illuminate\Http\Request;
+
+define('LARAVEL_START', microtime(true));
+
+// Ensure correct paths for Laravel bootstrap and autoload
+require __DIR__.'/../vendor/autoload.php';
+$app = require_once __DIR__.'/../bootstrap/app.php';
+
+$kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+
+$response = $kernel->handle(
+    $request = Request::capture()
+)->send();
+
+$kernel->terminate($request, $response);
+```
+✅ **Save and close `index.php`.**
+
+---
+
+## **✅ Step 4: Set Correct Permissions**
+
+### **In cPanel File Manager:**
+- **Go to `storage/` → Right-click → Set permissions to `775`.**
+- **Go to `bootstrap/cache/` → Right-click → Set permissions to `775`.**
+- **Go to `public_html/` → Right-click → Set permissions to `755`.**
+
+---
+
+## **✅ Step 5: Configure `.htaccess` (Important)**
+
+### **Modify `.htaccess` in `public_html/`**
+1. **Open or create a `.htaccess` file** and add the following:
+
+```apache
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Ensure PHP 8.2 is used
+    AddHandler application/x-httpd-ea-php82 .php
+
+    # Redirect all requests to Laravel's index.php
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+# Disable directory listing
+Options -Indexes
+
+# Disable mod_security (if necessary)
+<IfModule mod_security.c>
+    SecFilterEngine Off
+    SecFilterScanPOST Off
+</IfModule>
+```
+✅ **Save the file and reload your website.**
+
+---
+
+## **✅ Step 6: Set Up the Database**
+
+### **1. Create MySQL Database in cPanel**
+1. **Go to cPanel → MySQL Databases**.
+2. **Create a new database** (e.g., `missunit_pageant`).
+
+### **2. Create MySQL User**
+1. **Create a new database user** (e.g., `missunit_user`).
+2. **Set a secure password.**
+3. **Assign the user to the database with "ALL PRIVILEGES".**
+
+### **3. Import Your Database**
+1. **Go to `phpMyAdmin` → Select the new database**.
+2. **Click "Import" → Select your `.sql` file**.
+3. **Click "Go" to import the database.**
+
+✅ **Database setup is complete!**
+
+---
+
+## **✅ Step 7: Update `.env` Configuration**
+
+1. **Go to File Manager → Open `.env` in the project folder.**
+2. **Update database credentials correctly:**
+```ini
+APP_ENV=production
+APP_DEBUG=false
+APP_KEY=base64:YOUR_GENERATED_APP_KEY
+
+DB_CONNECTION=mysql
+DB_HOST=localhost
+DB_PORT=3306
+DB_DATABASE=missunit_pageant
+DB_USERNAME=missunit_user
+DB_PASSWORD=YOUR_DB_PASSWORD
+```
+3. **Save the file and close it.**
+
+🚀 **If the `.env` file is not working properly, clear the Laravel cache manually.**
+👉 **See the next step.**
+
+---
+
+## **✅ Step 8: Clear Laravel Cache**
+
+### **In cPanel File Manager:**
+1. **Go to `bootstrap/cache/`.**
+2. **Delete all `.php` files inside (`config.php`, `routes.php`, etc.).**
+3. **Go to `storage/framework/cache/` and delete all files inside.**
+4. **Reload your website.**
+
+
+---
+
+## **🔥 Final Checklist Before Testing**
+| **Task** | **Action** |
+|----------|-----------|
+| **Upload Laravel project** | ✅ `laravel_project.zip` uploaded and extracted |
+| **Move `public/` contents to `public_html/`** | ✅ Done |
+| **Edit `index.php` paths correctly** | ✅ Done |
+| **Set correct file permissions** | ✅ `storage/` & `bootstrap/cache/` to `775` |
+| **Update `.htaccess` to force PHP 8.2** | ✅ Done |
+| **Create database & import `.sql`** | ✅ Done |
+| **Update `.env` with correct database credentials** | ✅ Done |
+| **Clear Laravel cache manually** | ✅ Done |
+
+🚀 **Your Laravel site should now be live on cPanel!** 🎉
+
+---
+
+**📌 Need More Help?**
+If you encounter any issues, check the Laravel logs in `storage/logs/laravel.log` and your cPanel error logs for further debugging.
+
+**Happy coding! 🚀**
+
+
+
+
+
+
 ### Premium Partners
 
 - **[Vehikl](https://vehikl.com/)**
