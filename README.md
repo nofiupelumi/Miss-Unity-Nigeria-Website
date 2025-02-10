@@ -233,7 +233,7 @@ DB_PASSWORD=YOUR_DB_PASSWORD
 ---
 
 **📌 Need More Help?**
-If you encounter any issues, check the Laravel logs in `storage/logs/laravel.log` and your cPanel error logs for further debugging.
+If you encounter any issues, check the Laravel logs in `storage/logs/laravel.log` and your cPanel error logs for further debugging.Also if you encounter 500|server error , you can change the .env file from production to local and from App-debug= false to True to be able to see the actual problem.
 
 **Happy coding! 🚀**
 
